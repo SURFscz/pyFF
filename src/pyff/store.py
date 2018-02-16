@@ -181,7 +181,7 @@ class MemoryStore(StoreBase):
             else:
                 return []
 
-        m = re.match("^(.+)=(.+)$", key)
+        m = re.match("^(.+)=([^=].+)$", key)
         if m:
             return self._lookup("{%s}%s" % (m.group(1), str(m.group(2)).rstrip("/")))
 
