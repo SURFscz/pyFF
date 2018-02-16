@@ -177,7 +177,7 @@ The dict in the list contains three items:
                 return self.lookup(src, xp=xp, store=store)
 
         log.debug("calling store lookup %s" % member)
-        return store.lookup(member)
+        return store.lookup(member.strip("/"))
 
     def lookup(self, member, xp=None, store=None):
         """
