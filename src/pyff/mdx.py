@@ -79,6 +79,7 @@ from . import __version__ as pyff_version
 from publicsuffix import PublicSuffixList
 from .i18n import language
 from . import samlmd
+from pyff.watchdog import WatchDog
 
 _ = language.ugettext
 
@@ -481,6 +482,8 @@ class MDServer(object):
         self.aliases = config.aliases
         self.psl = PublicSuffixList()
         self.md = MDRepository()
+        if config.watch:
+            self.wd = WatchDog(self, config.watch)
         self.ready = False
 
         if config.autoreload:
@@ -698,10 +701,10 @@ def main():
     """
     try:
         opts, args = getopt.getopt(sys.argv[1:],
-                                   'hP:p:H:CfaA:l:Rm:',
+                                   'hP:p:H:CfaA:l:Rm:w:',
                                    ['help', 'loglevel=', 'log=', 'access-log=', 'error-log=',
                                     'port=', 'host=', 'no-caching', 'autoreload', 'frequency=', 'modules=',
-                                    'alias=', 'dir=', 'version', 'proxy', 'allow_shutdown'])
+                                    'alias=', 'dir=', 'version', 'proxy', 'allow_shutdown', 'watch'])
     except getopt.error as msg:
         print(msg)
         print(__doc__)
@@ -764,6 +767,8 @@ def main():
             elif o in '--version':
                 print("pyffd version %s (cherrypy version %s)" % (pyff_version, cherrypy.__version__))
                 sys.exit(0)
+            elif o in ('-w', '--watch'):
+                config.watch = a
             else:
                 raise ValueError("Unknown option '%s'" % o)
 
