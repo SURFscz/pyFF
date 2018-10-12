@@ -250,7 +250,7 @@ listed using the 'role' attribute to the link elements.
 
         _links('/entities/')
         for a in self.server.md.store.collections():
-            if '://' not in a:
+            if a is not None and '://' not in a:
                 _links(a)
 
         for entity_id in self.server.md.store.entity_ids():
@@ -431,14 +431,16 @@ Search the active set for matching entities.
         """
         cherrypy.response.headers['Content-Type'] = 'application/json'
         if paged:
-            res, more, total = self.server.md.search(query,
-                                                     page=int(page),
-                                                     page_limit=int(page_limit),
-                                                     entity_filter=entity_filter,
-                                                     related=related)
+            res, more, total = self.server.md.store.search(query,
+                                                           page=int(page),
+                                                           page_limit=int(page_limit),
+                                                           entity_filter=entity_filter,
+                                                           related=related)
             return dumps({'entities': res, 'more': more, 'total': total})
         else:
-            return dumps(self.server.md.search(query, entity_filter=entity_filter, related=related))
+            return dumps(self.server.md.store.search(query,
+                                                     entity_filter=entity_filter,
+                                                     related=related))
 
     @cherrypy.expose
     def index(self):
@@ -477,7 +479,7 @@ class MDServer(object):
         self._pipes = pipes
         self.lock = ReadWriteLock()
         self.plumbings = [plumbing(v) for v in pipes]
-        self.refresh = MDUpdate(cherrypy.engine, server=self, frequency=config.frequency)
+        self.refresh = MDUpdate(cherrypy.engine, server=self, frequency=config.update_frequency)
         self.refresh.subscribe()
         self.aliases = config.aliases
         self.psl = PublicSuffixList()
@@ -604,7 +606,7 @@ class MDServer(object):
 
                 pdict['storage'] = "/storage/"
                 cherrypy.response.headers['Content-Type'] = 'text/html'
-                return render_template("ds.html", **pdict)
+                return render_template(config.ds_template, **pdict)
             elif ext == 's':
                 paged = bool(kwargs.get('paged', False))
                 query = kwargs.get('query', None)
@@ -632,19 +634,19 @@ class MDServer(object):
                     log.debug("created query: %s" % ",".join(query))
 
                 if paged:
-                    res, more, total = self.md.search(query,
-                                                      path=q,
-                                                      page=int(page),
-                                                      page_limit=int(page_limit),
-                                                      entity_filter=entity_filter,
-                                                      related=related)
+                    res, more, total = self.md.store.search(query,
+                                                            path=q,
+                                                            page=int(page),
+                                                            page_limit=int(page_limit),
+                                                            entity_filter=entity_filter,
+                                                            related=related)
                     # log.debug(dumps({'entities': res, 'more': more, 'total': total}))
                     return dumps({'entities': res, 'more': more, 'total': total})
                 else:
-                    return dumps(self.md.search(query,
-                                                path=q,
-                                                entity_filter=entity_filter,
-                                                related=related))
+                    return dumps(self.md.store.search(query,
+                                                      path=q,
+                                                      entity_filter=entity_filter,
+                                                      related=related))
             elif accept.get('text/html'):
                 if not q:
                     if pfx:
@@ -750,7 +752,7 @@ def main():
             elif o in ('--autoreload', '-a'):
                 config.autoreload = True
             elif o in '--frequency':
-                config.frequency = int(a)
+                config.update_frequency = int(a)
             elif o in ('-A', '--alias'):
                 (a, colon, uri) = a.partition(':')
                 assert (colon == ':')
@@ -862,6 +864,12 @@ def main():
 
     root = MDRoot(server)
     app = cherrypy.tree.mount(root, config=cfg)
+    app.log.error_log.setLevel(config.loglevel)
+    log_args = {'level': config.loglevel}
+    if config.error_log is not None:
+        log_args['filename'] = config.error_log
+    logging.basicConfig(**log_args)
+
     if config.error_log is not None:
         if config.error_log.startswith('syslog:'):
             facility = config.error_log[7:]
@@ -879,8 +887,6 @@ def main():
             cherrypy.config.update({'log.access_file': ''})
         else:
             cherrypy.config.update({'log.access_file': config.access_log})
-
-    app.log.error_log.setLevel(config.loglevel)
 
     engine.signals.subscribe()
     try:

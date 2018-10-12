@@ -4,6 +4,7 @@ from .constants import NS
 from .logs import log
 from xmlsec.crypto import CertDict
 from datetime import datetime
+from samlmd import SAMLMetadataResourceParser
 from six import StringIO
 
 __author__ = 'leifj'
@@ -97,6 +98,7 @@ class MDServiceListParser():
         info = dict()
         info['Description'] = "eIDAS MetadataServiceList from {}".format(resource.url)
         t = parse_xml(StringIO(content.encode('utf8')))
+        t.xinclude()
         relt = root(t)
         info['Version'] = relt.get('Version', '0')
         info['IssueDate'] = relt.get('IssueDate')
@@ -128,7 +130,8 @@ class MDServiceListParser():
         return info
 
 
-_parsers = [XRDParser(), MDServiceListParser(), DirectoryParser('.xml'), NoParser()]
+_parsers = [SAMLMetadataResourceParser(), XRDParser(), MDServiceListParser(), DirectoryParser('.xml'), NoParser()]
+
 
 
 def add_parser(parser):
