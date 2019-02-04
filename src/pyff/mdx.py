@@ -79,6 +79,7 @@ from . import __version__ as pyff_version
 from publicsuffix import PublicSuffixList
 from .i18n import language
 from . import samlmd
+from cgi import escape
 
 _ = language.ugettext
 
@@ -598,8 +599,8 @@ class MDServer(object):
                     pdict['search'] = "/search/"
                     pdict['list'] = "/role/idp.json"
                 else:
-                    pdict['search'] = u"{}.s".format(path)
-                    pdict['list'] = u"{}.json".format(path)
+                    pdict['search'] = u"{}.s".format(escape(path, quote=True))
+                    pdict['list'] = u"{}.json".format(escape(path, quote=True))
 
                 pdict['storage'] = "/storage/"
                 cherrypy.response.headers['Content-Type'] = 'text/html'
